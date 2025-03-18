@@ -6,70 +6,65 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 import io
 
-# We'll skip the dynamic loading and use our comprehensive class list directly
-
-# If we couldn't get classes from GitHub, use a fallback approach
-if not imagenet_classes:
-    # Use a more comprehensive fallback list
-    # This is a much larger list combining COCO and common objects
-    imagenet_classes = [
-        # Original COCO classes
-        "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
-        "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-        "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-        "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-        "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-        "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-        "potted plant", "bed", "dining table", "toilet", "TV", "laptop", "mouse", "remote", "keyboard",
-        "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
-        "scissors", "teddy bear", "hair drier", "toothbrush",
-        
-        # Additional food items
-        "pear", "grape", "watermelon", "strawberry", "blueberry", "raspberry", "blackberry", "pineapple",
-        "mango", "peach", "plum", "cherry", "kiwi", "lemon", "lime", "coconut", "avocado", "tomato",
-        "cucumber", "eggplant", "bell pepper", "chili pepper", "potato", "sweet potato", "onion", "garlic",
-        "ginger", "mushroom", "lettuce", "cabbage", "spinach", "kale", "celery", "asparagus", "corn",
-        "peas", "green beans", "rice", "pasta", "bread", "toast", "pancake", "waffle", "cereal", "oatmeal",
-        "yogurt", "cheese", "butter", "milk", "cream", "ice cream", "chocolate", "candy", "cookie", "pie",
-        "cupcake", "muffin", "bagel", "croissant", "sushi", "ramen", "soup", "salad", "hamburger", "sandwich",
-        "burrito", "taco", "fries", "chips", "popcorn", "nuts", "eggs", "bacon", "sausage", "steak", "chicken",
-        "fish", "shrimp", "crab", "lobster", "oyster", "clam", "mussel", "tea", "coffee", "juice", "soda",
-        "water", "beer", "wine", "whiskey", "vodka", "cocktail",
-        
-        # Additional animals
-        "lion", "tiger", "leopard", "jaguar", "cheetah", "wolf", "fox", "coyote", "hyena", "jackal",
-        "raccoon", "panda", "koala", "kangaroo", "gorilla", "chimpanzee", "orangutan", "baboon", "lemur",
-        "sloth", "monkey", "deer", "moose", "elk", "reindeer", "buffalo", "bison", "rhino", "hippo",
-        "camel", "llama", "alpaca", "goat", "donkey", "mule", "pig", "boar", "hedgehog", "porcupine",
-        "beaver", "otter", "ferret", "weasel", "mink", "skunk", "badger", "armadillo", "opossum", "bat",
-        "squirrel", "chipmunk", "rat", "mouse", "hamster", "guinea pig", "rabbit", "hare", "mole", "shrew",
-        "eagle", "hawk", "falcon", "owl", "vulture", "raven", "crow", "parrot", "parakeet", "canary",
-        "finch", "sparrow", "robin", "cardinal", "blue jay", "woodpecker", "hummingbird", "duck", "goose",
-        "swan", "turkey", "chicken", "rooster", "pigeon", "dove", "penguin", "ostrich", "flamingo", "stork",
-        "crane", "peacock", "pelican", "seagull", "albatross", "heron", "crocodile", "alligator", "turtle",
-        "tortoise", "lizard", "iguana", "chameleon", "gecko", "snake", "python", "cobra", "viper", "boa",
-        "anaconda", "frog", "toad", "newt", "salamander", "axolotl", "fish", "shark", "whale", "dolphin",
-        "porpoise", "seal", "sea lion", "walrus", "octopus", "squid", "cuttlefish", "jellyfish", "starfish",
-        "sea urchin", "crab", "lobster", "shrimp", "crawfish", "butterfly", "moth", "caterpillar", "bee",
-        "wasp", "hornet", "ant", "termite", "grasshopper", "cricket", "cockroach", "ladybug", "beetle",
-        "fly", "mosquito", "spider", "scorpion", "tick", "mite", "centipede", "millipede", "worm", "snail",
-        "slug", "coral", "anemone", "sponge",
-        
-        # Additional household objects
-        "table", "desk", "drawer", "cabinet", "shelf", "bookshelf", "sofa", "armchair", "ottoman", "recliner",
-        "stool", "bench", "bed", "mattress", "pillow", "blanket", "quilt", "comforter", "sheet", "curtain",
-        "blind", "rug", "carpet", "mat", "lamp", "chandelier", "light bulb", "fan", "air conditioner", "heater",
-        "fireplace", "stove", "oven", "microwave", "refrigerator", "freezer", "dishwasher", "washing machine",
-        "dryer", "vacuum cleaner", "iron", "blender", "mixer", "toaster", "coffee maker", "kettle", "pot", "pan",
-        "baking sheet", "cutting board", "dish", "plate", "bowl", "cup", "mug", "glass", "fork", "knife", 
-        "spoon", "chopsticks", "napkin", "paper towel", "trash can", "recycling bin", "shower", "bathtub",
-        "toilet", "sink", "mirror", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste",
-        "hairbrush", "comb", "razor", "nail clippers", "scissors", "hammer", "screwdriver", "wrench", "pliers",
-        "drill", "saw", "nail", "screw", "bolt", "tape", "glue", "stapler", "paperclip", "pin", "needle",
-        "thread", "button", "zipper", "wallet", "purse", "handbag", "backpack", "suitcase", "briefcase",
-        "gift", "box", "package", "envelope", "paper", "notebook", "textbook", "magazine", "newspaper",
-        "calendar", "map", "globe", "pen", "pencil", "marker", "highlighter", "eraser", "ruler", "calculator"
-    ]
+# Define the imagenet_classes list first
+imagenet_classes = [
+    # Original COCO classes
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+    "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+    "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+    "potted plant", "bed", "dining table", "toilet", "TV", "laptop", "mouse", "remote", "keyboard",
+    "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+    "scissors", "teddy bear", "hair drier", "toothbrush",
+    
+    # Additional food items
+    "pear", "grape", "watermelon", "strawberry", "blueberry", "raspberry", "blackberry", "pineapple",
+    "mango", "peach", "plum", "cherry", "kiwi", "lemon", "lime", "coconut", "avocado", "tomato",
+    "cucumber", "eggplant", "bell pepper", "chili pepper", "potato", "sweet potato", "onion", "garlic",
+    "ginger", "mushroom", "lettuce", "cabbage", "spinach", "kale", "celery", "asparagus", "corn",
+    "peas", "green beans", "rice", "pasta", "bread", "toast", "pancake", "waffle", "cereal", "oatmeal",
+    "yogurt", "cheese", "butter", "milk", "cream", "ice cream", "chocolate", "candy", "cookie", "pie",
+    "cupcake", "muffin", "bagel", "croissant", "sushi", "ramen", "soup", "salad", "hamburger", "sandwich",
+    "burrito", "taco", "fries", "chips", "popcorn", "nuts", "eggs", "bacon", "sausage", "steak", "chicken",
+    "fish", "shrimp", "crab", "lobster", "oyster", "clam", "mussel", "tea", "coffee", "juice", "soda",
+    "water", "beer", "wine", "whiskey", "vodka", "cocktail",
+    
+    # Additional animals
+    "lion", "tiger", "leopard", "jaguar", "cheetah", "wolf", "fox", "coyote", "hyena", "jackal",
+    "raccoon", "panda", "koala", "kangaroo", "gorilla", "chimpanzee", "orangutan", "baboon", "lemur",
+    "sloth", "monkey", "deer", "moose", "elk", "reindeer", "buffalo", "bison", "rhino", "hippo",
+    "camel", "llama", "alpaca", "goat", "donkey", "mule", "pig", "boar", "hedgehog", "porcupine",
+    "beaver", "otter", "ferret", "weasel", "mink", "skunk", "badger", "armadillo", "opossum", "bat",
+    "squirrel", "chipmunk", "rat", "mouse", "hamster", "guinea pig", "rabbit", "hare", "mole", "shrew",
+    "eagle", "hawk", "falcon", "owl", "vulture", "raven", "crow", "parrot", "parakeet", "canary",
+    "finch", "sparrow", "robin", "cardinal", "blue jay", "woodpecker", "hummingbird", "duck", "goose",
+    "swan", "turkey", "chicken", "rooster", "pigeon", "dove", "penguin", "ostrich", "flamingo", "stork",
+    "crane", "peacock", "pelican", "seagull", "albatross", "heron", "crocodile", "alligator", "turtle",
+    "tortoise", "lizard", "iguana", "chameleon", "gecko", "snake", "python", "cobra", "viper", "boa",
+    "anaconda", "frog", "toad", "newt", "salamander", "axolotl", "fish", "shark", "whale", "dolphin",
+    "porpoise", "seal", "sea lion", "walrus", "octopus", "squid", "cuttlefish", "jellyfish", "starfish",
+    "sea urchin", "crab", "lobster", "shrimp", "crawfish", "butterfly", "moth", "caterpillar", "bee",
+    "wasp", "hornet", "ant", "termite", "grasshopper", "cricket", "cockroach", "ladybug", "beetle",
+    "fly", "mosquito", "spider", "scorpion", "tick", "mite", "centipede", "millipede", "worm", "snail",
+    "slug", "coral", "anemone", "sponge",
+    
+    # Additional household objects
+    "table", "desk", "drawer", "cabinet", "shelf", "bookshelf", "sofa", "armchair", "ottoman", "recliner",
+    "stool", "bench", "bed", "mattress", "pillow", "blanket", "quilt", "comforter", "sheet", "curtain",
+    "blind", "rug", "carpet", "mat", "lamp", "chandelier", "light bulb", "fan", "air conditioner", "heater",
+    "fireplace", "stove", "oven", "microwave", "refrigerator", "freezer", "dishwasher", "washing machine",
+    "dryer", "vacuum cleaner", "iron", "blender", "mixer", "toaster", "coffee maker", "kettle", "pot", "pan",
+    "baking sheet", "cutting board", "dish", "plate", "bowl", "cup", "mug", "glass", "fork", "knife", 
+    "spoon", "chopsticks", "napkin", "paper towel", "trash can", "recycling bin", "shower", "bathtub",
+    "toilet", "sink", "mirror", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste",
+    "hairbrush", "comb", "razor", "nail clippers", "scissors", "hammer", "screwdriver", "wrench", "pliers",
+    "drill", "saw", "nail", "screw", "bolt", "tape", "glue", "stapler", "paperclip", "pin", "needle",
+    "thread", "button", "zipper", "wallet", "purse", "handbag", "backpack", "suitcase", "briefcase",
+    "gift", "box", "package", "envelope", "paper", "notebook", "textbook", "magazine", "newspaper",
+    "calendar", "map", "globe", "pen", "pencil", "marker", "highlighter", "eraser", "ruler", "calculator"
+]
 
 # Load Model - Using SSD MobileNet V2 with FPN feature extractor
 @st.cache_resource
