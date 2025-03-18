@@ -2,7 +2,6 @@ import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
-import cv2
 from PIL import Image, ImageDraw, ImageFont
 
 # COCO Class Labels (80 Classes)
@@ -52,12 +51,20 @@ def draw_boxes(image, output):
             x_min, x_max = int(x_min * width), int(x_max * width)
             y_min, y_max = int(y_min * height), int(y_max * height)
 
-            # Draw Rectangle
+            # Draw Rectangle (Red)
             draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=3)
 
-            # Draw Label
+            # Draw Label (Black Text)
             label = f"{class_name} ({detection_scores[i]:.2f})"
-            draw.text((x_min, y_min - 10), label, fill="red")
+            text_size = draw.textbbox((0, 0), label)  # Get text size
+            text_width = text_size[2] - text_size[0]
+            text_height = text_size[3] - text_size[1]
+
+            # Draw text background (White box for better visibility)
+            draw.rectangle([x_min, y_min - text_height - 5, x_min + text_width + 5, y_min], fill="white")
+
+            # Draw label text (Black)
+            draw.text((x_min + 2, y_min - text_height - 3), label, fill="black")
 
     return image
 
