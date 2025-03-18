@@ -5,6 +5,8 @@ import tempfile
 from PIL import Image
 import time
 import os
+import sys
+from fallback_detector import FallbackDetector
 
 def main():
     # Set page config
@@ -16,6 +18,23 @@ def main():
     
     st.title("Object Detection Web App")
     st.sidebar.title("Settings")
+    
+    # Check for model files
+    model_files = {
+        "YOLO": ["yolov3.cfg", "yolov3.weights"],
+        "SSD MobileNet": ["ssd_mobilenet.prototxt", "ssd_mobilenet.caffemodel"],
+        "Class Names": ["coco.names"]
+    }
+    
+    missing_files = []
+    for model, files in model_files.items():
+        for file in files:
+            if not os.path.exists(file):
+                missing_files.append(f"{file} (required for {model})")
+    
+    if missing_files:
+        st.warning(f"Missing model files: {', '.join(missing_files)}")
+        st.info("Models that require missing files will use dummy detection. Run download_models.py to download the required files.")
     
     # Model selection dropdown
     model_option = st.sidebar.selectbox(
@@ -179,16 +198,35 @@ def run_camera_detection(model_option, confidence_threshold):
     cap.release()
 
 def detect_objects_yolo(image, confidence_threshold):
-    # Load pre-trained YOLO model
-    net = cv2.dnn.readNetFromDarknet("yolov3.cfg", "yolov3.weights")
+    # Check if model files exist
+    if not os.path.exists("yolov3.cfg") or not os.path.exists("yolov3.weights"):
+        # Use fallback detector
+        fallback = FallbackDetector()
+        return fallback.detect(image, confidence_threshold)
     
-    # Get output layer names
-    layer_names = net.getLayerNames()
-    output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
-    
-    # Load class names
-    with open("coco.names", "r") as f:
-        classes = [line.strip() for line in f.readlines()]
+    try:
+        # Load pre-trained YOLO model
+        net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+    except Exception as e:
+        st.error(f"Error loading YOLO model: {str(e)}")
+        fallback = FallbackDetector()
+        return fallback.detect(image, confidence_threshold)
+        
+        # Get output layer names
+        layer_names = net.getLayerNames()
+        try:
+            # For OpenCV >= 4.5.4
+            output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+        except:
+            # For older OpenCV versions
+            output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+        
+        # Load class names
+        if os.path.exists("coco.names"):
+            with open("coco.names", "r") as f:
+                classes = [line.strip() for line in f.readlines()]
+        else:
+            classes = [f"Class {i}" for i in range(80)]  # Default COCO classes
     
     # Image preprocessing
     height, width, _ = image.shape
@@ -247,12 +285,26 @@ def detect_objects_yolo(image, confidence_threshold):
     return output_image, detections
 
 def detect_objects_ssd(image, confidence_threshold):
-    # Load pre-trained SSD MobileNet model
-    net = cv2.dnn.readNetFromCaffe("ssd_mobilenet.prototxt", "ssd_mobilenet.caffemodel")
+    # Check if model files exist
+    if not os.path.exists("ssd_mobilenet.prototxt") or not os.path.exists("ssd_mobilenet.caffemodel"):
+        # Use fallback detector
+        fallback = FallbackDetector()
+        return fallback.detect(image, confidence_threshold)
     
-    # Load class names
-    with open("coco.names", "r") as f:
-        classes = [line.strip() for line in f.readlines()]
+    try:
+        # Load pre-trained SSD MobileNet model
+        net = cv2.dnn.readNetFromCaffe("ssd_mobilenet.prototxt", "ssd_mobilenet.caffemodel")
+    except Exception as e:
+        st.error(f"Error loading SSD model: {str(e)}")
+        fallback = FallbackDetector()
+        return fallback.detect(image, confidence_threshold)
+        
+        # Load class names
+        if os.path.exists("coco.names"):
+            with open("coco.names", "r") as f:
+                classes = [line.strip() for line in f.readlines()]
+        else:
+            classes = [f"Class {i}" for i in range(21)]  # Default classes
     
     # Image preprocessing
     height, width, _ = image.shape
