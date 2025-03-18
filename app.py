@@ -4,24 +4,31 @@ import tensorflow_hub as hub
 import numpy as np
 from PIL import Image
 
-# Cache the model loading to speed up subsequent runs.
+# COCO Class Labels (80 Classes)
+COCO_CLASSES = [
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+    "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+    "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+    "potted plant", "bed", "dining table", "toilet", "TV", "laptop", "mouse", "remote", "keyboard",
+    "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+    "scissors", "teddy bear", "hair drier", "toothbrush"
+]
+
+# Cache the model to load only once
 @st.cache_resource
 def load_model():
-    # Load the SSD MobileNet V2 model from TensorFlow Hub
     model_url = "https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2"
     return hub.load(model_url)
 
 model = load_model()
 
 def detect_objects(image):
-    # Convert the PIL image to a NumPy array
     img_array = np.array(image)
-    # Expand dimensions to match the expected input shape: [1, height, width, channels]
     img_array = np.expand_dims(img_array, axis=0)
-    # Convert to tensor (model expects dtype tf.uint8)
     input_tensor = tf.convert_to_tensor(img_array, dtype=tf.uint8)
-    
-    # Run inference
     output = model(input_tensor)
     return output
 
@@ -34,15 +41,15 @@ uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_column_width=True)
-    
+
     st.write("Detecting objects...")
     output = detect_objects(image)
-    
-    # Extract detection classes and scores from model output
+
     detection_classes = output["detection_classes"].numpy()[0].astype(int)
     detection_scores = output["detection_scores"].numpy()[0]
-    
+
     for i in range(len(detection_scores)):
-        # Only display detections with a confidence above 0.5
         if detection_scores[i] > 0.5:
-            st.write(f"Detected class: {detection_classes[i]} - Confidence: {detection_scores[i]:.2f}")
+            class_id = detection_classes[i]
+            class_name = COCO_CLASSES[class_id - 1] if 1 <= class_id <= 80 else "Unknown"
+            st.write(f"Detected: {class_name} - Confidence: {detection_scores[i]:.2f}")
