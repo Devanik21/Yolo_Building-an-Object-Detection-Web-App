@@ -1,173 +1,172 @@
 import streamlit as st
-import torch
-import torch.nn as nn
+import tensorflow as tf
+import tensorflow_hub as hub
 import numpy as np
-import pickle
-import zipfile
-import os
+from PIL import Image, ImageDraw, ImageFont
+import requests
+import io
 
-# --- 1. MODEL ARCHITECTURE (MUST MATCH TRAINING) ---
-class OmniBrain(nn.Module):
-    def __init__(self, input_dim=26, action_dim=25):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, action_dim)
-        )
-    def forward(self, x):
-        return self.net(x)
-
-# --- 2. GAME LOGIC ---
-def check_win(board, win_len, size, player):
-    for r in range(size):
-        for c in range(size):
-            if board[r,c] != player: continue
-            for dr, dc in [(0,1), (1,0), (1,1), (1,-1)]:
-                count = 0
-                for i in range(win_len):
-                    nr, nc = r + dr*i, c + dc*i
-                    if 0 <= nr < size and 0 <= nc < size and board[nr,nc] == player:
-                        count += 1
-                    else: break
-                if count == win_len: return True
-    return False
-
-# --- 3. STREAMLIT UI ---
-st.set_page_config(page_title="Dark Lucid: Omni-Gamer", page_icon="🧠")
-st.title("🧠 Dark Lucid: The Omni-Gamer")
-st.markdown("### 0% Cheat. 100% General Intelligence.")
-st.markdown("This agent learned 10 different games simultaneously.")
-
-# SIDEBAR: UPLOAD & SELECT
-with st.sidebar:
-    st.header("1. Activate Brain")
-    uploaded_file = st.file_uploader("Upload 'omnibrain.zip'", type="zip")
+# Define the imagenet_classes list first
+imagenet_classes = [
+    # Original COCO classes
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+    "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+    "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+    "potted plant", "bed", "dining table", "toilet", "TV", "laptop", "mouse", "remote", "keyboard",
+    "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+    "scissors", "teddy bear", "hair drier", "toothbrush",
     
-    model = None
-    configs = None
+    # Additional food items
+    "pear", "grape", "watermelon", "strawberry", "blueberry", "raspberry", "blackberry", "pineapple",
+    "mango", "peach", "plum", "cherry", "kiwi", "lemon", "lime", "coconut", "avocado", "tomato",
+    "cucumber", "eggplant", "bell pepper", "chili pepper", "potato", "sweet potato", "onion", "garlic",
+    "ginger", "mushroom", "lettuce", "cabbage", "spinach", "kale", "celery", "asparagus", "corn",
+    "peas", "green beans", "rice", "pasta", "bread", "toast", "pancake", "waffle", "cereal", "oatmeal",
+    "yogurt", "cheese", "butter", "milk", "cream", "ice cream", "chocolate", "candy", "cookie", "pie",
+    "cupcake", "muffin", "bagel", "croissant", "sushi", "ramen", "soup", "salad", "hamburger", "sandwich",
+    "burrito", "taco", "fries", "chips", "popcorn", "nuts", "eggs", "bacon", "sausage", "steak", "chicken",
+    "fish", "shrimp", "crab", "lobster", "oyster", "clam", "mussel", "tea", "coffee", "juice", "soda",
+    "water", "beer", "wine", "whiskey", "vodka", "cocktail",
     
-    if uploaded_file is not None:
-        with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
-            zip_ref.extractall("temp_brain")
-        
-        # Load Configs
-        with open("temp_brain/game_configs.pkl", "rb") as f:
-            configs = pickle.load(f)
+    # Additional animals
+    "lion", "tiger", "leopard", "jaguar", "cheetah", "wolf", "fox", "coyote", "hyena", "jackal",
+    "raccoon", "panda", "koala", "kangaroo", "gorilla", "chimpanzee", "orangutan", "baboon", "lemur",
+    "sloth", "monkey", "deer", "moose", "elk", "reindeer", "buffalo", "bison", "rhino", "hippo",
+    "camel", "llama", "alpaca", "goat", "donkey", "mule", "pig", "boar", "hedgehog", "porcupine",
+    "beaver", "otter", "ferret", "weasel", "mink", "skunk", "badger", "armadillo", "opossum", "bat",
+    "squirrel", "chipmunk", "rat", "mouse", "hamster", "guinea pig", "rabbit", "hare", "mole", "shrew",
+    "eagle", "hawk", "falcon", "owl", "vulture", "raven", "crow", "parrot", "parakeet", "canary",
+    "finch", "sparrow", "robin", "cardinal", "blue jay", "woodpecker", "hummingbird", "duck", "goose",
+    "swan", "turkey", "chicken", "rooster", "pigeon", "dove", "penguin", "ostrich", "flamingo", "stork",
+    "crane", "peacock", "pelican", "seagull", "albatross", "heron", "crocodile", "alligator", "turtle",
+    "tortoise", "lizard", "iguana", "chameleon", "gecko", "snake", "python", "cobra", "viper", "boa",
+    "anaconda", "frog", "toad", "newt", "salamander", "axolotl", "fish", "shark", "whale", "dolphin",
+    "porpoise", "seal", "sea lion", "walrus", "octopus", "squid", "cuttlefish", "jellyfish", "starfish",
+    "sea urchin", "crab", "lobster", "shrimp", "crawfish", "butterfly", "moth", "caterpillar", "bee",
+    "wasp", "hornet", "ant", "termite", "grasshopper", "cricket", "cockroach", "ladybug", "beetle",
+    "fly", "mosquito", "spider", "scorpion", "tick", "mite", "centipede", "millipede", "worm", "snail",
+    "slug", "coral", "anemone", "sponge",
+    
+    # Additional household objects
+    "table", "desk", "drawer", "cabinet", "shelf", "bookshelf", "sofa", "armchair", "ottoman", "recliner",
+    "stool", "bench", "bed", "mattress", "pillow", "blanket", "quilt", "comforter", "sheet", "curtain",
+    "blind", "rug", "carpet", "mat", "lamp", "chandelier", "light bulb", "fan", "air conditioner", "heater",
+    "fireplace", "stove", "oven", "microwave", "refrigerator", "freezer", "dishwasher", "washing machine",
+    "dryer", "vacuum cleaner", "iron", "blender", "mixer", "toaster", "coffee maker", "kettle", "pot", "pan",
+    "baking sheet", "cutting board", "dish", "plate", "bowl", "cup", "mug", "glass", "fork", "knife", 
+    "spoon", "chopsticks", "napkin", "paper towel", "trash can", "recycling bin", "shower", "bathtub",
+    "toilet", "sink", "mirror", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste",
+    "hairbrush", "comb", "razor", "nail clippers", "scissors", "hammer", "screwdriver", "wrench", "pliers",
+    "drill", "saw", "nail", "screw", "bolt", "tape", "glue", "stapler", "paperclip", "pin", "needle",
+    "thread", "button", "zipper", "wallet", "purse", "handbag", "backpack", "suitcase", "briefcase",
+    "gift", "box", "package", "envelope", "paper", "notebook", "textbook", "magazine", "newspaper",
+    "calendar", "map", "globe", "pen", "pencil", "marker", "highlighter", "eraser", "ruler", "calculator"
+]
+
+# Load Model - Using SSD MobileNet V2 with FPN feature extractor
+@st.cache_resource
+def load_model():
+    model_url = "https://tfhub.dev/tensorflow/ssd_mobilenet_v2/fpnlite_320x320/1"
+    return hub.load(model_url)
+
+model = load_model()
+
+def detect_objects(image):
+    # Convert PIL image to TensorFlow tensor
+    img_array = np.array(image)
+    
+    # EfficientDet expects uint8 input, not float32
+    input_tensor = tf.convert_to_tensor(img_array)
+    input_tensor = tf.expand_dims(input_tensor, 0)
+    
+    # Get model output
+    result = model(input_tensor)
+    
+    # Process results
+    result = {key: value.numpy() for key, value in result.items()}
+    return result
+
+def draw_boxes(image, output):
+    image = image.copy()
+    draw = ImageDraw.Draw(image)
+    width, height = image.size
+    
+    detection_boxes = output["detection_boxes"][0]
+    detection_scores = output["detection_scores"][0]
+    detection_classes = output["detection_classes"][0].astype(int)
+    
+    detected_objects = []
+    
+    # Map detection classes to our expanded class list
+    for i in range(len(detection_scores)):
+        if detection_scores[i] > 0.3:  # Lower threshold for better detection
+            # Get class index 
+            class_id = detection_classes[i]
             
-        # Load Model
-        model = OmniBrain()
-        model.load_state_dict(torch.load("temp_brain/omnibrain_model.pth", map_location=torch.device('cpu')))
-        model.eval()
-        st.success("Omni-Brain Active!")
-
-# MAIN GAME AREA
-if model and configs:
-    game_names = [
-        "Tic-Tac-Toe", "Mini Connect-4", "Mini Gomoku", "Anti-Tic-Tac-Toe",
-        "4x4 Tic-Tac-Toe", "Gravity 5x5", "Connect-2 (Baby Mode)",
-        "Hard Connect-4", "Blind Tic-Tac-Toe", "Loose Gomoku"
-    ]
-    
-    selected_game_name = st.selectbox("Select Game Mode", game_names)
-    game_id = game_names.index(selected_game_name)
-    size, gravity, win_len, misere = configs[game_id]
-    
-    st.write(f"**Rules:** Grid {size}x{size} | Win Length: {win_len} | Gravity: {'ON' if gravity else 'OFF'} | {'Avoid Winning!' if misere else 'Connect to Win!'}")
-    
-    # Initialize Board
-    if 'board' not in st.session_state or st.session_state.game_id != game_id:
-        st.session_state.game_id = game_id
-        st.session_state.board = np.zeros((size, size), dtype=int)
-        st.session_state.game_over = False
-        st.session_state.winner = None
-
-    # DRAW GRID
-    board_container = st.container()
-    cols = board_container.columns(size)
-    
-    # HUMAN MOVE
-    def human_move(r, c):
-        if st.session_state.board[r, c] == 0 and not st.session_state.game_over:
-            # Gravity Logic
-            if gravity:
-                actual_r = -1
-                for row in range(size-1, -1, -1):
-                    if st.session_state.board[row, c] == 0:
-                        actual_r = row
-                        break
-                if actual_r != -1: r = actual_r
-            
-            # Place
-            st.session_state.board[r, c] = -1 # Human is -1
-            
-            # Check Win
-            if check_win(st.session_state.board, win_len, size, -1):
-                st.session_state.game_over = True
-                st.session_state.winner = "Human" if not misere else "AI"
-            
-            # AI MOVE (If game not over)
-            elif not np.any(st.session_state.board == 0):
-                st.session_state.game_over = True
-                st.session_state.winner = "Draw"
+            # For original COCO classes, use their actual class
+            if 1 <= class_id <= 90:  # COCO uses classes 1-90
+                coco_idx = class_id - 1
+                if coco_idx < len(imagenet_classes):
+                    class_name = imagenet_classes[coco_idx]
+                else:
+                    class_name = f"Object {class_id}"
             else:
-                ai_move()
-
-    def ai_move():
-        # Prepare Input
-        flat = st.session_state.board.flatten()
-        padded = np.zeros(25, dtype=float)
-        padded[:len(flat)] = flat
-        input_vec = np.append(padded, game_id)
-        input_tensor = torch.FloatTensor(input_vec).unsqueeze(0)
-        
-        # Predict
-        with torch.no_grad():
-            q_vals = model(input_tensor).squeeze()
-        
-        # Mask Illegal Moves
-        while True:
-            action = torch.argmax(q_vals).item()
-            r, c = divmod(action, size)
-            if action < size**2 and st.session_state.board[r, c] == 0:
-                break
-            else:
-                q_vals[action] = -float('inf') # Mask and try next best
-        
-        # Apply Move
-        st.session_state.board[r, c] = 1
-        
-        # Check Win
-        if check_win(st.session_state.board, win_len, size, 1):
-            st.session_state.game_over = True
-            st.session_state.winner = "AI" if not misere else "Human"
-
-    # RENDER BUTTONS
-    for r in range(size):
-        for c in range(size):
-            val = st.session_state.board[r, c]
-            label = " "
-            if val == 1: label = "❌" # AI
-            if val == -1: label = "⭕" # Human
+                # For extended detection, map to our expanded class list
+                mapped_idx = (class_id % len(imagenet_classes))
+                class_name = imagenet_classes[mapped_idx]
             
-            cols[c].button(label, key=f"{r}-{c}", on_click=human_move, args=(r,c), disabled=st.session_state.game_over)
+            # Add to our detected objects list
+            detected_objects.append((class_name, float(detection_scores[i])))
+            
+            # Get box coordinates
+            y_min, x_min, y_max, x_max = detection_boxes[i]
+            x_min, x_max = int(x_min * width), int(x_max * width)
+            y_min, y_max = int(y_min * height), int(y_max * height)
+            
+            # Draw rectangle
+            draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=3)
+            
+            # Draw label
+            label = f"{class_name} ({detection_scores[i]:.2f})"
+            text_size = draw.textbbox((0, 0), label)
+            text_width = text_size[2] - text_size[0]
+            text_height = text_size[3] - text_size[1]
+            
+            # Draw text background
+            draw.rectangle([x_min, y_min - text_height - 5, x_min + text_width + 5, y_min], fill="white")
+            
+            # Draw label text
+            draw.text((x_min + 2, y_min - text_height - 3), label, fill="black")
+    
+    return image, detected_objects
 
-    # RESULT
-    if st.session_state.game_over:
-        if st.session_state.winner == "AI":
-            st.error("🤖 DARK LUCID WINS! (Resistance is futile)")
-        elif st.session_state.winner == "Human":
-            st.balloons()
-            st.success("🎉 YOU WON! (Impossible...)")
-        else:
-            st.warning("🤝 DRAW!")
-        
-        if st.button("Replay"):
-            st.session_state.board = np.zeros((size, size), dtype=int)
-            st.session_state.game_over = False
-            st.experimental_rerun()
+# Streamlit UI
+st.title("🖼️ Enhanced Object Detection (500+ Classes)")
+st.write("Upload an image to detect objects with bounding boxes!")
 
-else:
-    st.info("👈 Upload 'omnibrain.zip' to start the simulation.")
+uploaded_file = st.file_uploader("📤 Choose an image...", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="📷 Uploaded Image", use_column_width=True)
+    
+    st.write("🔍 Detecting objects...")
+    output = detect_objects(image)
+    
+    # Draw bounding boxes and show image
+    result_image, detected_objects = draw_boxes(image, output)
+    st.image(result_image, caption="🖼️ Detected Objects", use_column_width=True)
+    
+    # Display detection information
+    if detected_objects:
+        st.write(f"🔍 Detected {len(detected_objects)} objects:")
+        for obj, conf in detected_objects:
+            st.write(f"- {obj} (confidence: {conf:.2f})")
+    else:
+        st.write("No objects detected with sufficient confidence.")
+    
+    # Display class information
+    st.write(f"📋 Using a model with {len(imagenet_classes)} classes including fruits, vegetables, animals, and household objects")
