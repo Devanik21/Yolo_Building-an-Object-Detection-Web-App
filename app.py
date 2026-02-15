@@ -12,7 +12,7 @@ import scipy.linalg as la
 from scipy.spatial import Delaunay
 from scipy.stats import multivariate_normal
 from scipy.integrate import odeint
-from scipy.special import sph_harm, legendre
+from scipy.special import sph_harm_y, legendre
 import colorsys
 
 # ============================================================
