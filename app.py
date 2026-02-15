@@ -1078,7 +1078,7 @@ SUBJECTS = {
             ('Connection Form', gauge_field, None),
             ('Curvature Form', quantum_field_2d, 'turbo'),
             ('Wilson Loop', attractor_dynamics, None),
-            (''t Hooft Loop', topology_network, None),
+            ('t Hooft Loop', topology_network, None),
             ('Monopole Field', manifold_3d, 'quantum'),
             ('Gauge Fixing', phase_space_flow, None),
             ('BRST Symmetry', eigenspace_projection, None),
