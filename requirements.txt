@@ -3,3 +3,5 @@ tensorflow
 tensorflow-hub
 numpy
 pillow
+scipy
+plotly
