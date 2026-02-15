@@ -6,7 +6,7 @@ The Most Aesthetically Beautiful & Scientifically Advanced Visualization Engine
 
 import streamlit as st
 import numpy as np
-import scipy.graph_objects as go
+import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import scipy.linalg as la
 from scipy.spatial import Delaunay
