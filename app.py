@@ -1189,7 +1189,7 @@ def main():
     # Regenerate button
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("🔄 REGENERATE ALL", use_container_width=True):
+        if st.button("🔄 REGENERATE ALL", width='stretch'):
             st.session_state.master_seed = np.random.randint(0, 1000000)
             st.rerun()
     
@@ -1220,7 +1220,7 @@ def main():
                             else:
                                 fig = plot_func(seed, subject_id, plot_id)
                             
-                            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                            st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
                             st.caption(f"**{plot_title}**")
                         except Exception as e:
                             st.error(f"Plot error: {str(e)[:50]}")
